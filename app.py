@@ -4,6 +4,7 @@ import io
 import numpy as np
 import streamlit as st
 import spacy
+import spacy.cli
 import gensim.downloader as api
 import matplotlib.pyplot as plt
 import requests
@@ -96,7 +97,6 @@ def load_resources():
     try:
         nlp = spacy.load('en_core_web_sm')
     except OSError:
-        import spacy.cli
         spacy.cli.download('en_core_web_sm')
         nlp = spacy.load('en_core_web_sm')
     glove = api.load('glove-wiki-gigaword-50')
