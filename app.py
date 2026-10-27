@@ -211,37 +211,47 @@ with st.sidebar:
     st.header('📥 Input Document')
     input_mode = st.radio('Choose how to load terms:', ['✍️ Paste Text', '🌐 Fetch from Web URL', '📄 Upload PDF Document'])
     
-    loaded_text = ''
     if input_mode == '✍️ Paste Text':
         if st.button('📋 Load Sample T&C'):
-            st.session_state['input_content'] = SAMPLE
+            st.session_state['terms_area'] = SAMPLE
+            st.rerun()
     elif input_mode == '🌐 Fetch from Web URL':
         url_input = st.text_input('Website Terms URL', placeholder='https://example.com/terms')
         if st.button('Fetch & Scrape Terms') and url_input.strip():
             with st.spinner('Scraping clean text from webpage...'):
                 try:
                     loaded_text = extract_text_from_url(url_input.strip())
-                    st.session_state['input_content'] = loaded_text
-                    st.success(f'Extracted {len(loaded_text):,} characters from webpage!')
+                    if not loaded_text:
+                        st.warning('No suitable text content found at this URL. The site might require login or JavaScript.')
+                    else:
+                        st.session_state['terms_area'] = loaded_text[:30000]
+                        st.rerun()
                 except Exception as e:
                     st.error(f'Failed to fetch URL: {e}')
     elif input_mode == '📄 Upload PDF Document':
         uploaded_pdf = st.file_uploader('Upload contract or terms PDF', type=['pdf'])
         if uploaded_pdf is not None:
-            with st.spinner('Extracting text from PDF pages...'):
-                try:
-                    pdf_text, num_pages = extract_text_from_pdf(uploaded_pdf)
-                    st.session_state['input_content'] = pdf_text
-                    st.success(f'Loaded {num_pages} pages ({len(pdf_text):,} characters)!')
-                except Exception as e:
-                    st.error(f'Error reading PDF: {e}')
+            if st.session_state.get('last_uploaded_pdf') != uploaded_pdf.name:
+                with st.spinner('Extracting text from PDF pages...'):
+                    try:
+                        pdf_text, num_pages = extract_text_from_pdf(uploaded_pdf)
+                        if not pdf_text:
+                            st.warning('Could not extract text from this PDF (it might be scanned images).')
+                        else:
+                            st.session_state['terms_area'] = pdf_text[:30000]
+                            st.session_state['last_uploaded_pdf'] = uploaded_pdf.name
+                            st.rerun()
+                    except Exception as e:
+                        st.error(f'Error reading PDF: {e}')
 
     st.markdown('---')
     st.info('🔒 **100% Local & Private:** All NLP analysis runs completely on your machine. No contract data is sent to external servers.')
 
 # Main Text Area
-current_val = st.session_state.get('input_content', '')
-text = st.text_area('Terms & Conditions Text (up to 30,000 characters):', value=current_val, height=180, max_chars=30000, key='terms_area')
+if 'terms_area' not in st.session_state:
+    st.session_state['terms_area'] = ''
+
+text = st.text_area('Terms & Conditions Text (up to 30,000 characters):', height=180, max_chars=30000, key='terms_area')
 
 if not text.strip():
     st.info('👉 Select an input method in the sidebar (paste text, fetch a URL, or upload a PDF) to start analysis.')
